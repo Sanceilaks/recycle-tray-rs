@@ -1,9 +1,12 @@
 #![windows_subsystem = "windows"]
 
+
 use tray_icon::{
     menu::{Menu, MenuEvent, MenuItemBuilder}, Icon, TrayIcon, TrayIconBuilder
 };
+#[cfg(target_os = "windows")]
 use winapi::{shared::windef::HWND, um::shellapi::{SHERB_NOCONFIRMATION, SHERB_NOPROGRESSUI, SHERB_NOSOUND}};
+
 use winit::event_loop;
 
 fn get_icon() -> Icon {
@@ -52,6 +55,7 @@ fn main() {
                 std::time::Instant::now() + std::time::Duration::from_millis(16),
             ));
 
+            #[cfg(not(target_os = "linux"))]
             if let winit::event::Event::NewEvents(winit::event::StartCause::Init) = event {
                 icon = Some(
                     TrayIconBuilder::new()
@@ -70,13 +74,21 @@ fn main() {
                 }
 
                 if event.id == "open" {
+                    #[cfg(target_os = "windows")]
                     std::process::Command::new("explorer")
                         .arg("shell:RecycleBinFolder")
+                        .spawn()
+                        .unwrap();
+
+                    #[cfg(target_os = "linux")]
+                    std::process::Command::new("xdg-open")
+                        .arg("~/.local/share/Trash")
                         .spawn()
                         .unwrap();
                 }
 
                 if event.id == "empty" {
+                    #[cfg(target_os = "windows")]
                     unsafe {
                         winapi::um::shellapi::SHEmptyRecycleBinA(
                             std::ptr::null_mut() as HWND,
@@ -84,6 +96,13 @@ fn main() {
                             SHERB_NOCONFIRMATION | SHERB_NOSOUND | SHERB_NOPROGRESSUI,
                         );
                     };
+
+                    #[cfg(target_os = "linux")]
+                    std::process::Command::new("rm")
+                        .arg("-rf")
+                        .arg("~/.local/share/Trash")
+                        .spawn()
+                        .unwrap();
                 }
             }
         })
